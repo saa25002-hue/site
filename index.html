@@ -1,11 +1,656 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>西条農業 模擬経営PLダッシュボード</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* スクロールバーのカスタマイズ */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #86efac;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #16a34a;
+        }
+        /* 入力フォームの微調整 */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+    </style>
 </head>
-<body>
-    
+<body class="bg-stone-50 text-stone-800 font-sans min-h-screen flex flex-col">
+
+    <!-- ヘッダー -->
+    <header class="bg-gradient-to-r from-brand-800 via-brand-700 to-emerald-800 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <!-- 農業風ロゴマーク (SVG) -->
+                <div class="bg-white p-2 rounded-full shadow-inner text-brand-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c-1.5 3-4.5 4-4.5 7.5C7.5 14 10 16 12 21c2-5 4.5-7 4.5-10.5C16.5 7 13.5 3 12 3z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold tracking-wide">西条農業 模擬経営PLダッシュボード</h1>
+                    <p class="text-xs text-brand-100">模擬会社・実習プロジェクト向け財務シミュレーションツール</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 bg-brand-900/40 px-4 py-2 rounded-lg border border-brand-500/30">
+                <span class="inline-block w-2.5 h-2.5 bg-green-400 rounded-full animate-ping"></span>
+                <span class="text-xs sm:text-sm font-medium">シミュレーション・アクティブ</span>
+                <button onclick="resetData()" class="ml-3 bg-brand-600 hover:bg-brand-500 text-white text-xs py-1 px-3 rounded transition-colors duration-200">
+                    初期化
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+
+        <!-- イントロダクション -->
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-stone-200/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h2 class="text-lg font-bold text-stone-900 flex items-center gap-2">
+                    <span class="text-brand-600">📊</span> 経営シミュレーションについて
+                </h2>
+                <p class="text-sm text-stone-600 mt-1 leading-relaxed">
+                    西条農業の各部門（野菜・果樹・畜産・直売所）の実習データを模したPL（損益計算書）ダッシュボードです。<br class="hidden sm:inline">
+                    左側の入力欄で生産高やコストを変更すると、全体の粗利益や営業利益、各種グラフが<b>リアルタイムに自動更新</b>されます。
+                </p>
+            </div>
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 max-w-md w-full">
+                <span class="font-bold">💡 授業・実習のヒント:</span><br>
+                「苗木や飼料を安く仕入れる」「イベント売上を15%増やす」など、どのような経営努力が利益（営業利益）を最大化させるかシミュレーションしてみましょう。
+            </div>
+        </div>
+
+        <!-- 概要カード (主要KPI) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <!-- KPI 1: 売上高 -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-stone-200/80 hover:shadow-md transition-shadow relative overflow-hidden">
+                <div class="absolute right-0 top-0 w-24 h-24 bg-brand-50 rounded-full -mr-8 -mt-8 opacity-50"></div>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-semibold text-stone-400 uppercase tracking-wider">合計 売上高</p>
+                        <h3 id="kpi-total-revenue" class="text-3xl font-extrabold text-stone-900 mt-1">¥0</h3>
+                    </div>
+                    <span class="p-2 bg-brand-100 text-brand-700 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </span>
+                </div>
+                <div class="mt-4 flex items-center text-xs text-stone-500">
+                    <span>全部門の総売上合計</span>
+                </div>
+            </div>
+
+            <!-- KPI 2: 売上総利益（粗利） -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-stone-200/80 hover:shadow-md transition-shadow relative overflow-hidden">
+                <div class="absolute right-0 top-0 w-24 h-24 bg-emerald-50 rounded-full -mr-8 -mt-8 opacity-50"></div>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-semibold text-stone-400 uppercase tracking-wider">売上総利益（粗利）</p>
+                        <h3 id="kpi-gross-profit" class="text-3xl font-extrabold text-emerald-700 mt-1">¥0</h3>
+                    </div>
+                    <span class="p-2 bg-emerald-100 text-emerald-700 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" />
+                        </svg>
+                    </span>
+                </div>
+                <div class="mt-4 flex items-center text-xs text-stone-500">
+                    <span>粗利率: <span id="kpi-gross-margin" class="font-bold text-emerald-600 ml-1">0%</span></span>
+                </div>
+            </div>
+
+            <!-- KPI 3: 営業利益 -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-stone-200/80 hover:shadow-md transition-shadow relative overflow-hidden">
+                <div class="absolute right-0 top-0 w-24 h-24 bg-blue-50 rounded-full -mr-8 -mt-8 opacity-50"></div>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-semibold text-stone-400 uppercase tracking-wider">営業利益</p>
+                        <h3 id="kpi-operating-profit" class="text-3xl font-extrabold text-blue-700 mt-1">¥0</h3>
+                    </div>
+                    <span id="kpi-operating-icon-container" class="p-2 bg-blue-100 text-blue-700 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                    </span>
+                </div>
+                <div class="mt-4 flex items-center text-xs text-stone-500">
+                    <span>営業利益率: <span id="kpi-operating-margin" class="font-bold text-blue-600 ml-1">0%</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- メイングリッド（入力・テーブル と グラフ・ビジュアル） -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- 左側: 入力式損益計算書 (7カラム分) -->
+            <div class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-stone-200/80 overflow-hidden">
+                <div class="bg-stone-50 px-6 py-4 border-b border-stone-200 flex justify-between items-center">
+                    <h3 class="font-bold text-stone-900 flex items-center gap-2">
+                        <span class="text-brand-600">📝</span> 模擬損益計算書（PL入力）
+                    </h3>
+                    <span class="text-xs text-stone-400">※オレンジ枠は自動計算項目</span>
+                </div>
+
+                <div class="p-6 space-y-6">
+
+                    <!-- 1. 売上高セクション -->
+                    <div>
+                        <div class="flex items-center gap-2 pb-2 mb-3 border-b-2 border-brand-200">
+                            <span class="text-brand-700 text-lg">🌾</span>
+                            <h4 class="font-bold text-brand-900">1. 売上高</h4>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-stone-500 mb-1">野菜部門 <span class="text-xs font-normal text-stone-400">（トマト、キャベツ等）</span></label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-stone-400 text-sm">¥</span>
+                                    <input type="number" id="val-rev-veg" oninput="calculatePL()" class="block w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500" value="1500000">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-stone-500 mb-1">果樹部門 <span class="text-xs font-normal text-stone-400">（ブドウ、梨、柿等）</span></label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-stone-400 text-sm">¥</span>
+                                    <input type="number" id="val-rev-fruit" oninput="calculatePL()" class="block w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500" value="1800000">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-stone-500 mb-1">畜産部門 <span class="text-xs font-normal text-stone-400">（鶏卵、ブランド加工肉等）</span></label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-stone-400 text-sm">¥</span>
+                                    <input type="number" id="val-rev-livestock" oninput="calculatePL()" class="block w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500" value="1200000">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-stone-500 mb-1">地域連携・直売所 <span class="text-xs font-normal text-stone-400">（イベント等売上）</span></label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-stone-400 text-sm">¥</span>
+                                    <input type="number" id="val-rev-event" oninput="calculatePL()" class="block w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500" value="800000">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 売上高 合計（自動計算） -->
+                        <div class="mt-3 bg-brand-50/60 border border-brand-100 rounded-lg p-3 flex justify-between items-center">
+                            <span class="text-sm font-bold text-brand-900">売上高 合計</span>
+                            <span id="calc-total-revenue" class="text-base font-extrabold text-brand-800">¥0</span>
+                        </div>
+                    </div>
+
+                    <!-- 2. 売上原価セクション -->
+                    <div>
+                        <div class="flex items-center gap-2 pb-2 mb-3 border-b-2 border-orange-200">
+                            <span class="text-orange-700 text-lg">🚜</span>
+                            <h4 class="font-bold text-orange-900">2. 売上原価 (生産コスト)</h4>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-stone-500 mb-1">種苗・苗木費</label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-stone-400 text-sm">¥</span>
+                                    <input type="number" id="val-cost-seed" oninput="calculatePL()" class="block w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500" value="400000">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-stone-500 mb-1">肥料・農薬費</label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-stone-400 text-sm">¥</span>
+                                    <input type="number" id="val-cost-fertilizer" oninput="calculatePL()" class="block w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500" value="550000">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-stone-500 mb-1">飼料費 <span class="text-xs font-normal text-stone-400">（家畜用）</span></label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-stone-400 text-sm">¥</span>
+                                    <input type="number" id="val-cost-feed" oninput="calculatePL()" class="block w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500" value="650000">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 売上原価 合計（自動計算） -->
+                        <div class="mt-3 bg-orange-50/60 border border-orange-100 rounded-lg p-3 flex justify-between items-center">
+                            <span class="text-sm font-bold text-orange-900">売上原価 合計</span>
+                            <span id="calc-total-cost" class="text-base font-extrabold text-orange-800">¥0</span>
+                        </div>
+                    </div>
+
+                    <!-- 自動計算: 売上総利益 -->
+                    <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-300 rounded-xl p-4 flex justify-between items-center shadow-inner">
+                        <div>
+                            <span class="text-xs font-bold text-emerald-800 uppercase tracking-wider block">自動算出利益</span>
+                            <span class="text-lg font-bold text-emerald-900">売上総利益 (粗利)</span>
+                        </div>
+                        <div class="text-right">
+                            <span id="calc-gross-profit" class="text-2xl font-black text-emerald-700 block">¥0</span>
+                            <span class="text-xs text-stone-500">（売上高 － 売上原価）</span>
+                        </div>
+                    </div>
+
+                    <!-- 3. 販売費及び一般管理費セクション -->
+                    <div>
+                        <div class="flex items-center gap-2 pb-2 mb-3 border-b-2 border-blue-200">
+                            <span class="text-blue-700 text-lg">📦</span>
+                            <h4 class="font-bold text-blue-900">3. 販売費及び一般管理費 (販管費)</h4>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-stone-500 mb-1">パッケージ（梱包）費</label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-stone-400 text-sm">¥</span>
+                                    <input type="number" id="val-sgna-package" oninput="calculatePL()" class="block w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500" value="300000">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-stone-500 mb-1">出荷運賃・物流費</label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-stone-400 text-sm">¥</span>
+                                    <input type="number" id="val-sgna-delivery" oninput="calculatePL()" class="block w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500" value="250000">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-stone-500 mb-1">水道光熱費 <span class="text-xs font-normal text-stone-400">（温室ハウス・畜舎等）</span></label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-stone-400 text-sm">¥</span>
+                                    <input type="number" id="val-sgna-utility" oninput="calculatePL()" class="block w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500" value="450000">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-stone-500 mb-1">設備減価償却費 <span class="text-xs font-normal text-stone-400">（トラクター・施設）</span></label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-stone-400 text-sm">¥</span>
+                                    <input type="number" id="val-sgna-depreciation" oninput="calculatePL()" class="block w-full pl-8 pr-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500" value="600000">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 販管費 合計（自動計算） -->
+                        <div class="mt-3 bg-blue-50/60 border border-blue-100 rounded-lg p-3 flex justify-between items-center">
+                            <span class="text-sm font-bold text-blue-900">販売費及び一般管理費 合計</span>
+                            <span id="calc-total-sgna" class="text-base font-extrabold text-blue-800">¥0</span>
+                        </div>
+                    </div>
+
+                    <!-- 自動計算: 営業利益 -->
+                    <div id="calc-operating-profit-card" class="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-xl p-4 flex justify-between items-center shadow-inner transition-colors duration-300">
+                        <div>
+                            <span class="text-xs font-bold text-blue-800 uppercase tracking-wider block">最終シミュレーション利益</span>
+                            <span class="text-lg font-bold text-blue-900">営業利益</span>
+                        </div>
+                        <div class="text-right">
+                            <span id="calc-operating-profit" class="text-2xl font-black text-blue-700 block">¥0</span>
+                            <span class="text-xs text-stone-500">（売上総利益 － 販管費）</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 右側: ビジュアル＆分析ダッシュボード (5カラム分) -->
+            <div class="lg:col-span-5 space-y-6">
+
+                <!-- グラフ：売上内訳 (円グラフ) -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-stone-200/80">
+                    <h3 class="font-bold text-stone-900 flex items-center gap-2 mb-4">
+                        <span class="text-brand-600">🍕</span> 売上構成の内訳
+                    </h3>
+                    <div class="relative w-full aspect-square max-h-[280px] mx-auto">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- グラフ：費用構成 (棒グラフ) -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-stone-200/80">
+                    <h3 class="font-bold text-stone-900 flex items-center gap-2 mb-4">
+                        <span class="text-brand-600">📊</span> コスト構造の比較
+                    </h3>
+                    <div class="relative w-full aspect-[4/3] max-h-[250px] mx-auto">
+                        <canvas id="expenseChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 経営分析アドバイス（動的アドバイス） -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-stone-200/80">
+                    <h3 class="font-bold text-stone-900 flex items-center gap-2 mb-3">
+                        <span class="text-amber-500">💡</span> 財務アナリストからの分析
+                    </h3>
+                    <div class="space-y-3">
+                        <!-- 評価インジケータ -->
+                        <div class="flex items-center gap-3 bg-stone-50 p-3 rounded-lg border border-stone-100">
+                            <div id="advisor-status-badge" class="px-2.5 py-1 rounded-full text-xs font-extrabold shadow-sm">
+                                診断中
+                            </div>
+                            <p id="advisor-status-text" class="text-xs font-medium text-stone-600">ロード中...</p>
+                        </div>
+                        <!-- 分析コメント -->
+                        <div class="bg-brand-50/40 p-4 rounded-xl border border-brand-100/60">
+                            <h4 class="text-xs font-bold text-brand-900 mb-1">【改善アクションのヒント】</h4>
+                            <p id="advisor-comment" class="text-xs text-stone-600 leading-relaxed">
+                                数値を入力すると、ここにおすすめの経営戦略が表示されます。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- フッター -->
+    <footer class="bg-stone-900 text-stone-400 py-8 mt-12 border-t border-stone-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-3">
+            <p class="text-sm font-bold text-stone-300">西条農業 模擬経営PLダッシュボード</p>
+            <p class="text-xs text-stone-500 leading-relaxed">
+                本ツールは教育実習および模擬経営シミュレーション用に作成されたウェブアプリケーションです。<br>
+                実習での仮説検証、経営分析の基礎学習、各種イベントの事前採算プランニングに活用できます。
+            </p>
+            <div class="pt-4 border-t border-stone-800/80 text-[10px] text-stone-600">
+                &copy; 2026 Saijo Agricultural High School Simulation Project. All Rights Reserved.
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript ロジック -->
+    <script>
+        // チャートオブジェクトをグローバル保持
+        let revenueChartObj = null;
+        let expenseChartObj = null;
+
+        // 初期化用デフォルトデータ
+        const defaultData = {
+            revVeg: 1500000,
+            revFruit: 1800000,
+            revLivestock: 1200000,
+            revEvent: 800000,
+            costSeed: 400000,
+            costFertilizer: 550000,
+            costFeed: 650000,
+            sgnaPackage: 300000,
+            sgnaDelivery: 250000,
+            sgnaUtility: 450000,
+            sgnaDepreciation: 600000
+        };
+
+        // DOMの読み込み完了後に実行
+        window.onload = function() {
+            initCharts();
+            calculatePL();
+        };
+
+        // データの初期化ボタン
+        function resetData() {
+            document.getElementById('val-rev-veg').value = defaultData.revVeg;
+            document.getElementById('val-rev-fruit').value = defaultData.revFruit;
+            document.getElementById('val-rev-livestock').value = defaultData.revLivestock;
+            document.getElementById('val-rev-event').value = defaultData.revEvent;
+            document.getElementById('val-cost-seed').value = defaultData.costSeed;
+            document.getElementById('val-cost-fertilizer').value = defaultData.costFertilizer;
+            document.getElementById('val-cost-feed').value = defaultData.costFeed;
+            document.getElementById('val-sgna-package').value = defaultData.sgnaPackage;
+            document.getElementById('val-sgna-delivery').value = defaultData.sgnaDelivery;
+            document.getElementById('val-sgna-utility').value = defaultData.sgnaUtility;
+            document.getElementById('val-sgna-depreciation').value = defaultData.sgnaDepreciation;
+            
+            calculatePL();
+        }
+
+        // 数値フォーマットヘルパー (3桁区切り)
+        function formatYen(num) {
+            return '¥' + Math.round(num).toLocaleString('ja-JP');
+        }
+
+        // チャートの初期化
+        function initCharts() {
+            // 1. 売上構成グラフ（円）
+            const ctxRev = document.getElementById('revenueChart').getContext('2d');
+            revenueChartObj = new Chart(ctxRev, {
+                type: 'doughnut',
+                data: {
+                    labels: ['野菜部門', '果樹部門', '畜産部門', '地域連携・直売所'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: [
+                            '#4ade80', // 緑
+                            '#fbbf24', // 黄橙
+                            '#f87171', // 赤
+                            '#60a5fa'  // 青
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 11 }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+
+            // 2. 費用比較グラフ（横棒）
+            const ctxExp = document.getElementById('expenseChart').getContext('2d');
+            expenseChartObj = new Chart(ctxExp, {
+                type: 'bar',
+                data: {
+                    labels: ['原価:種苗', '原価:肥料等', '原価:飼料', '販管:梱包', '販管:運賃', '販管:光熱費', '販管:償却'],
+                    datasets: [{
+                        label: '費用額 (円)',
+                        data: [0, 0, 0, 0, 0, 0, 0],
+                        backgroundColor: [
+                            '#ffedd5', '#fed7aa', '#fdba74', // オレンジ系（売上原価）
+                            '#dbeafe', '#bfdbfe', '#93c5fd', '#60a5fa'  // ブルー系（販管費）
+                        ],
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                callback: function(value) {
+                                    return value >= 10000 ? (value / 10000) + '万' : value;
+                                }
+                            }
+                        },
+                        y: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // PLリアルタイム計算処理
+        function calculatePL() {
+            // 各種入力数値の取得
+            const revVeg = Math.max(0, parseFloat(document.getElementById('val-rev-veg').value) || 0);
+            const revFruit = Math.max(0, parseFloat(document.getElementById('val-rev-fruit').value) || 0);
+            const revLivestock = Math.max(0, parseFloat(document.getElementById('val-rev-livestock').value) || 0);
+            const revEvent = Math.max(0, parseFloat(document.getElementById('val-rev-event').value) || 0);
+
+            const costSeed = Math.max(0, parseFloat(document.getElementById('val-cost-seed').value) || 0);
+            const costFertilizer = Math.max(0, parseFloat(document.getElementById('val-cost-fertilizer').value) || 0);
+            const costFeed = Math.max(0, parseFloat(document.getElementById('val-cost-feed').value) || 0);
+
+            const sgnaPackage = Math.max(0, parseFloat(document.getElementById('val-sgna-package').value) || 0);
+            const sgnaDelivery = Math.max(0, parseFloat(document.getElementById('val-sgna-delivery').value) || 0);
+            const sgnaUtility = Math.max(0, parseFloat(document.getElementById('val-sgna-utility').value) || 0);
+            const sgnaDepreciation = Math.max(0, parseFloat(document.getElementById('val-sgna-depreciation').value) || 0);
+
+            // 計算処理
+            const totalRevenue = revVeg + revFruit + revLivestock + revEvent;
+            const totalCost = costSeed + costFertilizer + costFeed;
+            const grossProfit = totalRevenue - totalCost;
+
+            const totalSgna = sgnaPackage + sgnaDelivery + sgnaUtility + sgnaDepreciation;
+            const operatingProfit = grossProfit - totalSgna;
+
+            // 比率の算出
+            const grossMarginRatio = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+            const operatingMarginRatio = totalRevenue > 0 ? (operatingProfit / totalRevenue) * 100 : 0;
+
+            // UI への書き戻し
+            // KPI カード
+            document.getElementById('kpi-total-revenue').innerText = formatYen(totalRevenue);
+            document.getElementById('kpi-gross-profit').innerText = formatYen(grossProfit);
+            document.getElementById('kpi-operating-profit').innerText = formatYen(operatingProfit);
+            
+            document.getElementById('kpi-gross-margin').innerText = grossMarginRatio.toFixed(1) + '%';
+            document.getElementById('kpi-operating-margin').innerText = operatingMarginRatio.toFixed(1) + '%';
+
+            // PLテーブル内の自動計算セル
+            document.getElementById('calc-total-revenue').innerText = formatYen(totalRevenue);
+            document.getElementById('calc-total-cost').innerText = formatYen(totalCost);
+            document.getElementById('calc-gross-profit').innerText = formatYen(grossProfit);
+            document.getElementById('calc-total-sgna').innerText = formatYen(totalSgna);
+            document.getElementById('calc-operating-profit').innerText = formatYen(operatingProfit);
+
+            // 赤字か黒字かで営業利益カードのデザインを切り替え
+            const opProfitCard = document.getElementById('calc-operating-profit-card');
+            const opIconContainer = document.getElementById('kpi-operating-icon-container');
+            const kpiOpProfitText = document.getElementById('kpi-operating-profit');
+
+            if (operatingProfit < 0) {
+                // 赤字時スタイル
+                opProfitCard.className = "bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-300 rounded-xl p-4 flex justify-between items-center shadow-inner";
+                opIconContainer.className = "p-2 bg-red-100 text-red-700 rounded-lg";
+                kpiOpProfitText.className = "text-3xl font-extrabold text-red-700 mt-1";
+                // 赤字用アイコン(下降)に差し替え
+                opIconContainer.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" /></svg>`;
+            } else {
+                // 黒字時スタイル
+                opProfitCard.className = "bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-xl p-4 flex justify-between items-center shadow-inner";
+                opIconContainer.className = "p-2 bg-blue-100 text-blue-700 rounded-lg";
+                kpiOpProfitText.className = "text-3xl font-extrabold text-blue-700 mt-1";
+                // 上昇アイコンに差し替え
+                opIconContainer.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>`;
+            }
+
+            // グラフデータの更新
+            if (revenueChartObj) {
+                revenueChartObj.data.datasets[0].data = [revVeg, revFruit, revLivestock, revEvent];
+                revenueChartObj.update();
+            }
+
+            if (expenseChartObj) {
+                expenseChartObj.data.datasets[0].data = [
+                    costSeed, costFertilizer, costFeed,
+                    sgnaPackage, sgnaDelivery, sgnaUtility, sgnaDepreciation
+                ];
+                expenseChartObj.update();
+            }
+
+            // 動的アドバイスロジック
+            updateAdvisor(totalRevenue, totalCost, totalSgna, operatingProfit, grossMarginRatio, operatingMarginRatio, revVeg, revFruit, revLivestock, revEvent);
+        }
+
+        // 動的アドバイザーのアドバイス生成
+        function updateAdvisor(totalRevenue, totalCost, totalSgna, operatingProfit, grossMargin, opMargin, revVeg, revFruit, revLivestock, revEvent) {
+            const badge = document.getElementById('advisor-status-badge');
+            const statusText = document.getElementById('advisor-status-text');
+            const comment = document.getElementById('advisor-comment');
+
+            if (totalRevenue === 0) {
+                badge.className = "px-2.5 py-1 rounded-full text-xs font-extrabold shadow-sm bg-stone-200 text-stone-700";
+                statusText.innerText = "データ未入力";
+                comment.innerText = "売上データが入力されていません。まずは売上高の数値を入力してみてください。";
+                return;
+            }
+
+            if (operatingProfit < 0) {
+                badge.className = "px-2.5 py-1 rounded-full text-xs font-extrabold shadow-sm bg-red-100 text-red-800";
+                statusText.innerText = "要・赤字経営改善";
+                
+                let advise = "現在、営業利益が赤字となっています。";
+                if (grossMargin < 30) {
+                    advise += "生産コスト（売上原価）の割合が高いため、肥料・農薬の共同購入や飼料の自家配合率の改善など、生産プロセスのコストカットを検討してみましょう。";
+                } else if (totalSgna > grossProfit) {
+                    advise += "生産自体は順調（高い粗利益）ですが、パッケージ費や水道光熱費（温室ハウス等）の販管費が利益を圧迫しています。設備の稼働効率を高めるなどの対策が必要です。";
+                } else {
+                    advise += "売上総利益が小さいため、まずは直売所や地域イベント等でのオリジナル付加価値商品の割合を増やし、単価アップを図りましょう。";
+                }
+                comment.innerText = advise;
+            } else if (opMargin < 5) {
+                badge.className = "px-2.5 py-1 rounded-full text-xs font-extrabold shadow-sm bg-amber-100 text-amber-800";
+                statusText.innerText = "薄利・改善余地あり";
+                comment.innerText = "利益は出ていますが、営業利益率が低め（5%未満）です。配送コストの集約（出荷運賃削減）や、最も利益率の高い果樹部門や野菜部門などのブランド化を進め、利益率向上を目指すと効果的です。";
+            } else if (opMargin >= 25) {
+                badge.className = "px-2.5 py-1 rounded-full text-xs font-extrabold shadow-sm bg-green-100 text-green-800 animate-bounce";
+                statusText.innerText = "極めて優秀な財務体制";
+                comment.innerText = "営業利益率25%を超える非常に高い利益体質です。この余剰利益を使って、スマート農業機器（IT・ドローン等）への新規設備投資を行い、実習の効率化とさらなる付加価値創出を図ることができます。";
+            } else {
+                badge.className = "px-2.5 py-1 rounded-full text-xs font-extrabold shadow-sm bg-emerald-100 text-emerald-800";
+                statusText.innerText = "健全な農業経営";
+
+                // 部門別の特徴をとらえる
+                let mainDept = "野菜部門";
+                let maxVal = revVeg;
+                if (revFruit > maxVal) { mainDept = "果樹部門"; maxVal = revFruit; }
+                if (revLivestock > maxVal) { mainDept = "畜産部門"; maxVal = revLivestock; }
+                if (revEvent > maxVal) { mainDept = "直売所部門"; maxVal = revEvent; }
+
+                comment.innerText = `現在、全体の稼ぎ頭は「${mainDept}」です。現在の安定した黒字を維持しつつ、地元企業や飲食店等とタイアップした「コラボ商品」を直売所で販売するなど、新チャネルへのアプローチにも挑戦してみましょう！`;
+            }
+        }
+    </script>
 </body>
 </html>
